@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<style>
+		#welcome, #messages{
+			background-color: rgb(48, 48, 48);
+			color: white;
+			padding: 10px;
+			margin-right: 83%;
+			font-family: monospace;
+			font-weight: normal;
+		}
+
+		#added{
+			color: blue;
+			font-style: italic;
+			font-size: small;
+			margin-left: 10px
+		}	
+
+		input{
+			border-style: hidden;
+			background-color: rgb(242, 242, 242);
+			font-weight: bold;
+			padding: 20px;
+			width: 14%;
+			border-bottom-style: outset;
+		}
+
+		@-webkit-keyframes FadeIn { 
+  			0% { opacity:0;}
+  			65% {opacity:0.5;}
+  			100% {opacity: 1.0;}
+		}
+
+		@keyframes FadeIn { 
+  			0% { opacity:0;}
+  			65% {opacity:0.5;}
+  			100% {opacity: 1.0;}
+		}
+
+		#chat{
+			margin: 25px 83% 25px 0px;
+			background-color: rgba(169, 106, 106, 0.26);
+			word-wrap: break-word;
+		}
+
+		#chat p {
+			-webkit-animation-name: FadeIn;
+			-webkit-animation-duration: 0.4s;
+			-webkit-animation-timing-function: ease-in-out;
+			animation-name: FadeIn;
+			animation-duration: 0.4s;
+			animation-timing-function: ease-in-out;
+		}
+	</style>
+	
+	<script>
+	console.log("supported "+window.Worker);
+	if(window.Worker){
+		var user_name = window.location.href.split("?")[1]; 
+		var worker = new SharedWorker("worker.js", "core");
+		worker.port.postMessage("added|"+user_name);
+
+		function welcome(event){
+			console.log("(welcome)The msg is "+event.data);
+			if(event.data.split("|")[0] != "welcome") 
+				return;
+			console.log("(welcome)Its a welcome msg");
+			var id = event.data.split("|")[1];
+			var h1 = document.getElementById("welcome");
+			h1.textContent = "Welcome User #"+id;
+			worker.port.removeEventListener("message", welcome, false);	// We only welcome once.
+		}
+		worker.port.addEventListener("message", welcome, false);
+
+		function chat(event){
+			console.log("(chat)The msg is "+event.data);
+			if(event.data.split("|")[0] != "chat") 
+				return;
+			console.log("(chat)Its a NOT a welcome msg, its a chat msg");
+			var id = event.data.split("|")[1];
+			var username = event.data.split("|")[2];
+			var message = event.data.split("|")[3];
+			console.log("(chat)ID of the poster "+id);		
+			console.log("(chat)Message "+message);
+			var line = document.getElementById("chat");
+			var p = document.createElement("p");
+
+			var id_span = document.createElement("span");
+			id_span.textContent = username+" >    ";
+			p.appendChild(id_span);
+
+			var message_span = document.createElement("span");
+			message_span.textContent = message;
+			p.appendChild(message_span);
+
+			line.appendChild(p);
+		}
+		worker.port.addEventListener("message", chat, false);	// onmessage execute chat
+
+		function userAdded(event){
+			var data = event.data;
+			console.log("(userAdded)The msg is "+data);
+			if(data.split("|")[0] != "added") 
+				return;
+			var id = event.data.split("|")[1];
+			var username = event.data.split("|")[2];
+
+			console.log("(userAdded)Username of the poster "+username);
+			var added = document.getElementById("added");
+			var p = document.createElement("p");
+
+			var message_span = document.createElement("span");
+			message_span.textContent = "The username "+username+" has been added to the chatroom";
+			p.appendChild(message_span);
+
+			added.appendChild(p);
+		}
+		worker.port.addEventListener("message", userAdded, false);	// onmessage execute chat
+
+		function handleErr(event){
+			console.warn(event.message, event);
+		}
+		worker.port.addEventListener("error", handleErr, false);
+
+		worker.port.start();
+	}
+
+</script>
+</head>
+
+<body onunload="worker.terminate(); worker=undefined;">
+
+<h2 id="welcome"></h2>
+
+<div id="added"></div>
+
+<h2 id="messages">Messages begin</h2>
+<div id="chat"></div>
+<h2 id="messages">Messages end</h2>
+
+<form onsubmit="worker.port.postMessage('msg|'+msg.value); msg.value = ''; return false;">
+	<input type="text" name="msg" id="msg" placeholder="Enter Your Message Here..." onkeyup="if(event.keyCode == 13) document.getElementById('msg').click();">
+</form>
+
+</body>
+</html>
